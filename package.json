@@ -1,0 +1,35 @@
+{
+  "name": "v4l2-camera",
+  "version": "1.0.0",
+  "description": "Camera library for Linux (V4L2)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "prepublishOnly": "npx tsc",
+    "script:example": "npx ts-node ./scripts/example.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jangxx/v4l2-camera-ts.git"
+  },
+  "keywords": [
+    "v4l2",
+    "webcam",
+    "linux"
+  ],
+  "author": "jangxx <jangxx@pm.me>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jangxx/v4l2-camera-ts/issues"
+  },
+  "homepage": "https://github.com/jangxx/v4l2-camera-ts#readme",
+  "devDependencies": {
+    "@types/ref-napi": "^3.0.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "libv4l2-ts": "^0.0.3",
+    "ref-napi": "^3.0.3"
+  }
+}
