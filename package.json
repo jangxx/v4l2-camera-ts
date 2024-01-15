@@ -4,8 +4,8 @@
   "description": "Camera library for Linux (V4L2)",
   "main": "dist/index.js",
   "scripts": {
-    "build": "npx tsc",
-    "prepublishOnly": "npx tsc",
+    "build": "rm -r dist && npx tsc",
+    "prepublishOnly": "rm -r dist && npx tsc",
     "script:example": "npx ts-node ./scripts/example.ts"
   },
   "repository": {
@@ -29,7 +29,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "libv4l2-ts": "^0.0.3",
+    "libv4l2-ts": "^0.0.5",
     "ref-napi": "^3.0.3"
   }
 }

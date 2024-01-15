@@ -243,46 +243,43 @@ export class Camera {
 		this._buffers = [];
 		this._lastBuffer = null;
 
-		const req = new v4l2_requestbuffers();
-		req.count = bufferCount;
-		req.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		req.memory = v4l2_memory.V4L2_MEMORY_MMAP;
+		try {
+			const req = new v4l2_requestbuffers();
+			req.count = bufferCount;
+			req.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			req.memory = v4l2_memory.V4L2_MEMORY_MMAP;
 
-		v4l2_ioctl(this._fd, ioctl.VIDIOC_REQBUFS, req.ref());
+			v4l2_ioctl(this._fd, ioctl.VIDIOC_REQBUFS, req.ref());
 
-		for (let i = 0; i < bufferCount; i++) {
-			const buf = new v4l2_buffer();
-			buf.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			buf.memory = v4l2_memory.V4L2_MEMORY_MMAP;
-			buf.index = i;
+			for (let i = 0; i < bufferCount; i++) {
+				const buf = new v4l2_buffer();
+				buf.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
+				buf.memory = v4l2_memory.V4L2_MEMORY_MMAP;
+				buf.index = i;
 
-			v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERYBUF, buf.ref());
+				v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERYBUF, buf.ref());
 
-			this._buffers.push(v4l2_mmap(
-				buf.length,
-				PROT_READ | PROT_WRITE,
-				MAP_SHARED,
-				this._fd,
-				buf.m.offset,
-			));
+				this._buffers.push(v4l2_mmap(
+					buf.length,
+					PROT_READ | PROT_WRITE,
+					MAP_SHARED,
+					this._fd,
+					buf.m.offset,
+				));
 
-			v4l2_ioctl(this._fd, ioctl.VIDIOC_QBUF, buf.ref());
+				v4l2_ioctl(this._fd, ioctl.VIDIOC_QBUF, buf.ref());
+			}
+
+			const type = ref.alloc(ref.types.int32, v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE);
+
+			v4l2_ioctl(this._fd, ioctl.VIDIOC_STREAMON, type);
+
+			this._dqBufStruct = new v4l2_buffer();
+		} catch(e: any) {
+			this._buffers = null;
+			this._lastBuffer = null;
+			throw e;
 		}
-
-		// for (let i = 0; i < bufferCount; i++) {
-		// 	const buf = new v4l2_buffer();
-		// 	buf.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		// 	buf.memory = v4l2_memory.V4L2_MEMORY_MMAP;
-		// 	buf.index = i;
-
-		// 	v4l2_ioctl(this._fd, ioctl.VIDIOC_QBUF, buf.ref());
-		// }
-
-		const type = ref.alloc(ref.types.int32, v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE);
-
-		v4l2_ioctl(this._fd, ioctl.VIDIOC_STREAMON, type);
-
-		this._dqBufStruct = new v4l2_buffer();
 	}
 
 	stop() {
