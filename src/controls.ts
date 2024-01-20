@@ -1,5 +1,4 @@
-import * as videodev2 from "libv4l2-ts/dist/videodev2";
-import * as v4l2_controls from "libv4l2-ts/dist/v4l2-controls";
+import { videodev2, v4l2_controls } from "libv4l2-ts";
 
 const { v4l2_ctrl_type } = videodev2;
 

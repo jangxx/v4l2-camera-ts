@@ -99,24 +99,12 @@ export class Camera {
 		const fmt = new v4l2_format();
 		fmt.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-		let anySet = false;
 
-		if (format.width !== undefined) {
-			fmt.fmt.pix.width = format.width;
-			anySet = true;
-		}
-		if (format.height !== undefined) {
-			fmt.fmt.pix.height = format.height;
-			anySet = true;
-		}
-		if (format.pixelFormatStr !== undefined) {
-			fmt.fmt.pix.pixelformat = stringToFourcc(format.pixelFormatStr);
-			anySet = true;
-		}
+		fmt.fmt.pix.width = format.width;
+		fmt.fmt.pix.height = format.height;
+		fmt.fmt.pix.pixelformat = stringToFourcc(format.pixelFormatStr);
 
-		if (anySet) {
-			v4l2_ioctl(this._fd, ioctl.VIDIOC_S_FMT, fmt.ref());
-		}
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_S_FMT, fmt.ref());
 
 		if (format.fps !== undefined) {
 			const parm = new v4l2_streamparm();
@@ -204,7 +192,7 @@ export class Camera {
 		return controls;
 	}
 
-	getControl(id: number) {
+	getControl(id: number): number {
 		if (this._fd === null) {
 			throw new Error("Camera is not open");
 		}

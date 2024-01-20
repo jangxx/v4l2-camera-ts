@@ -19,9 +19,9 @@ export interface GetCameraFormat {
 }
 
 export interface SetCameraFormat {
-	width?: number;
-	height?: number;
-	pixelFormatStr?: string;
+	width: number;
+	height: number;
+	pixelFormatStr: string;
 	fps?: {
 		numerator: number;
 		denominator: number;
