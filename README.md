@@ -4,6 +4,8 @@ Camera library for Linux (V4L2) written in pure TypeScript using `libv4l2-ts` fo
 ## Installation
 
 ```
+sudo apt install libv4l-dev
+
 npm install v4l2-camera-ts
 ```
 
