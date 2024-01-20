@@ -1,16 +1,16 @@
-# v4l2-camera
+# v4l2-camera-ts
 Camera library for Linux (V4L2) written in pure TypeScript using `libv4l2-ts` for the interaction with the kernel.
 
 ## Installation
 
 ```
-npm install v4l2-camera
+npm install v4l2-camera-ts
 ```
 
 ## Usage
 
 ```ts
-import { Camera } from "v4l2-camera";
+import { Camera } from "v4l2-camera-ts";
 import fsp from "fs/promises";
 
 async function main() {
@@ -86,5 +86,6 @@ After this call, buffers returned from `getNextFrame()` should not be accessed a
 
 `async getNextFrame(): Promise<Buffer>`  
 Wait for the next frame to be available, exchange a buffer with the driver and then return that buffer.
+The buffer will contain data in the format set by `setFormat`.
 The returned buffers are not normal `Buffer`s however, since their underlying data points to a memory-mapped region that the V4L2 driver can write into.
 This means that you need to copy the data out of them (e.g. with `Buffer.from(buf)`), or they are going to get overwritten by a later call to `getNextFrame()`.

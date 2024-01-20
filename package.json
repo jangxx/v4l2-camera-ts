@@ -1,5 +1,5 @@
 {
-  "name": "v4l2-camera",
+  "name": "v4l2-camera-ts",
   "version": "1.0.0",
   "description": "Camera library for Linux (V4L2)",
   "main": "dist/index.js",
