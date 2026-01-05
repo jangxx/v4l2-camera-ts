@@ -6,7 +6,7 @@ import {
 	v4l2_ioctl,
 	v4l2_mmap,
 	v4l2_munmap,
-	is_readable_async,
+	poll_async,
 } from "libv4l2-ts/dist/libv4l2";
 import {
 	v4l2_format,
@@ -21,9 +21,17 @@ import {
 	v4l2_buffer,
 	v4l2_memory,
 	v4l2_requestbuffers,
+	v4l2_event,
+	V4L2_EVENT_CTRL,
+	v4l2_event_subscription,
+	V4L2_EVENT_SUB_FL_SEND_INITIAL,
+	V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK,
+	V4L2_EVENT_ALL,
+	V4L2_EVENT_CTRL_CH_VALUE,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
 import { Buffer } from "node:buffer";
+import { EventEmitter } from "node:events";
 
 import {
 	GetCameraFormat,
@@ -36,6 +44,7 @@ import {
 } from "./format";
 import {
 	CameraControl,
+	CameraControlEvent,
 	CameraControlMenu,
 	CameraControlMenuEntry,
 	CameraControlSingle,
@@ -44,16 +53,39 @@ import {
 	idToString,
 	typeToString,
 } from "./controls";
+import { CaptureThread } from "./capture_thread";
+import { ControlEventsThread } from "./control_events_thread";
 
-export class Camera {
+export interface SubscribeEventFlags {
+	sendInitial?: boolean;
+	allowFeedback?: boolean;
+}
+
+interface CameraEvents {
+	frame: [Buffer];
+	"control-change": [CameraControlEvent];
+}
+
+export class Camera extends EventEmitter<CameraEvents> {
 	private _fd: number | null = null;
 
 	private _buffers: Buffer[] | null = null;
 	private _lastBuffer: number | null = null;
 	private _dqBufStruct: InstanceType<typeof v4l2_buffer> | null = null;
 
+	private _captureThread: CaptureThread | null = null;
+	private _controlEventsThread: ControlEventsThread | null = null;
+
 	get started() {
 		return this._buffers !== null;
+	}
+
+	get backgroundFrameCaptureEnabled() {
+		return this._captureThread !== null && this._captureThread.isRunning;
+	}
+
+	get backgroundControlChangeEventsEnabled() {
+		return this._controlEventsThread !== null && this._controlEventsThread.isRunning;
 	}
 
 	open(path: string) {
@@ -317,16 +349,138 @@ export class Camera {
 			v4l2_ioctl(this._fd, ioctl.VIDIOC_QBUF, this._dqBufStruct!.ref());
 		}
 
-		while (!(await is_readable_async(this._fd, 1000))) {}
+		let pollResult;
+		do {
+			pollResult = await poll_async(this._fd, 1000, { pollin: true });
+		} while (pollResult === null || !pollResult.pollin);
 
-		this._dqBufStruct.ref().fill(0);
-		this._dqBufStruct.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		this._dqBufStruct.memory = v4l2_memory.V4L2_MEMORY_MMAP;
+		this._dqBufStruct!.ref().fill(0);
+		this._dqBufStruct!.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		this._dqBufStruct!.memory = v4l2_memory.V4L2_MEMORY_MMAP;
 
-		v4l2_ioctl(this._fd, ioctl.VIDIOC_DQBUF, this._dqBufStruct.ref());
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_DQBUF, this._dqBufStruct!.ref());
+		this._lastBuffer = this._dqBufStruct!.index;
 
-		this._lastBuffer = this._dqBufStruct.index;
+		const buf = this._buffers![this._lastBuffer!];
 
-		return this._buffers![this._lastBuffer!];
+		this.emit("frame", buf);
+
+		return buf;
+	}
+
+	enableBackgroundFrameCapture() {
+		if (this._captureThread !== null && this._captureThread.isRunning) {
+			throw new Error("Capture thread is already started");
+		}
+
+		this._captureThread = new CaptureThread(this);
+		this._captureThread.start();
+	}
+
+	disableBackgroundFrameCapture() {
+		if (this._captureThread === null || !this._captureThread.isRunning) {
+			throw new Error("Capture thread is not started");
+		}
+
+		this._captureThread.stop();
+	}
+
+	subscribeControlEvent(id: number, flags?: SubscribeEventFlags) {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const eventSubscription = new v4l2_event_subscription();
+		eventSubscription.type = V4L2_EVENT_CTRL;
+		eventSubscription.id = id;
+
+		if (flags?.sendInitial) {
+			eventSubscription.flags |= V4L2_EVENT_SUB_FL_SEND_INITIAL;
+		}
+		if (flags?.allowFeedback) {
+			eventSubscription.flags |= V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK;
+		}
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_SUBSCRIBE_EVENT, eventSubscription.ref());
+	}
+
+	unsubscribeControlEvent(id: number) {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const eventSubscription = new v4l2_event_subscription();
+		eventSubscription.type = V4L2_EVENT_CTRL;
+		eventSubscription.id = id;
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_UNSUBSCRIBE_EVENT, eventSubscription.ref());
+	}
+
+	unsubscribeAllEvents() {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const eventSubscription = new v4l2_event_subscription();
+		eventSubscription.type = V4L2_EVENT_ALL;
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_UNSUBSCRIBE_EVENT, eventSubscription.ref());
+	}
+
+	async getNextEvent(): Promise<CameraControlEvent | null> {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		let pollResult;
+		do {
+			pollResult = await poll_async(this._fd, 1000, { pollpri: true });
+		} while (pollResult === null || !pollResult.pollpri);
+
+		const eventData = new v4l2_event();
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_DQEVENT, eventData.ref());
+
+		if (eventData.type === V4L2_EVENT_CTRL && eventData.id > 0) {
+			const ctrlEvent = eventData.u.ctrl;
+
+			if (ctrlEvent.changes | V4L2_EVENT_CTRL_CH_VALUE) {
+				const event: CameraControlEvent = {
+					id: eventData.id,
+					idStr: idToString(eventData.id),
+					type: ctrlEvent.type,
+					typeStr: typeToString(ctrlEvent.type),
+					value: ctrlEvent.value.value,
+					flags: decodeFlags(ctrlEvent.flags),
+					default: ctrlEvent.default_value,
+					min: ctrlEvent.minimum,
+					max: ctrlEvent.maximum,
+					step: ctrlEvent.step,
+				};
+
+				this.emit("control-change", event);
+
+				return event;
+			}
+		}
+
+		return null;
+	}
+
+	enableBackgroundControlChangeEvents() {
+		if (this._controlEventsThread !== null && this._controlEventsThread.isRunning) {
+			throw new Error("Control events thread is already started");
+		}
+
+		this._controlEventsThread = new ControlEventsThread(this);
+		this._controlEventsThread.start();
+	}
+
+	disableBackgroundControlChangeEvents() {
+		if (this._controlEventsThread === null || !this._controlEventsThread.isRunning) {
+			throw new Error("Control events thread is not started");
+		}
+
+		this._controlEventsThread.stop();
 	}
 }

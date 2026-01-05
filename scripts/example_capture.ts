@@ -1,8 +1,5 @@
 import { Camera } from "../src/camera";
-import { v4l2_controls } from "libv4l2-ts";
 import fsp from "fs/promises";
-
-const { V4L2_CID_CONTRAST } = v4l2_controls;
 
 async function main() {
 	const cam = new Camera();
@@ -12,7 +9,6 @@ async function main() {
 	console.log(cam.queryFormat());
 
 	cam.setFormat({ width: 1920, height: 1080, pixelFormatStr: "MJPG" });
-
 
 	cam.start();
 

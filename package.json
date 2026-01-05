@@ -1,6 +1,6 @@
 {
   "name": "v4l2-camera-ts",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Camera library for Linux (V4L2)",
   "main": "dist/index.js",
   "scripts": {
@@ -25,14 +25,15 @@
   },
   "homepage": "https://github.com/jangxx/v4l2-camera-ts#readme",
   "devDependencies": {
+    "@types/node": "^25.0.3",
     "@types/ref-napi": "^3.0.12",
     "prettier": "^3.7.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@types/node": "^25.0.3",
     "libv4l2-ts": "^1.0.0",
     "ref-napi": "^3.0.3"
-  }
+  },
+  "os": [ "linux" ]
 }

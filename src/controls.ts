@@ -55,6 +55,19 @@ export type CameraControlMenu = CameraControlBase & {
 
 export type CameraControl = CameraControlSingle | CameraControlMenu;
 
+export interface CameraControlEvent {
+	id: number;
+	idStr: string;
+	type: number;
+	typeStr: string;
+	value: number;
+	flags: CameraControlFlags;
+	default: number;
+	min: number;
+	max: number;
+	step: number;
+}
+
 export function decodeName(nameRaw: Buffer) {
 	let name = "";
 
