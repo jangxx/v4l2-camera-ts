@@ -46,7 +46,7 @@ export function fourccToString(fourcc: number): string {
 }
 
 export function fieldToString(field: number): string {
-	switch(field) {
+	switch (field) {
 		case v4l2_field.V4L2_FIELD_ANY:
 			return "Any";
 		case v4l2_field.V4L2_FIELD_NONE:
@@ -73,7 +73,7 @@ export function fieldToString(field: number): string {
 }
 
 export function colorspaceToString(colorspace: number): string {
-	switch(colorspace) {
+	switch (colorspace) {
 		case v4l2_colorspace.V4L2_COLORSPACE_DEFAULT:
 			return "Default";
 		case v4l2_colorspace.V4L2_COLORSPACE_SMPTE170M:

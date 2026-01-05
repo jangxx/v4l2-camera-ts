@@ -13,45 +13,45 @@ for (const key in v4l2_controls) {
 }
 
 export interface CameraControlFlags {
-	disabled: boolean,
-	grabbed: boolean,
-	readOnly: boolean,
-	update: boolean,
-	inactive: boolean,
-	slider: boolean,
-	writeOnly: boolean,
-	volatile: boolean,
-	hasPayload: boolean,
-	executeOnWrite: boolean,
-	modifyLayout: boolean,
+	disabled: boolean;
+	grabbed: boolean;
+	readOnly: boolean;
+	update: boolean;
+	inactive: boolean;
+	slider: boolean;
+	writeOnly: boolean;
+	volatile: boolean;
+	hasPayload: boolean;
+	executeOnWrite: boolean;
+	modifyLayout: boolean;
 }
 
 export interface CameraControlMenuEntry {
-	id: number,
-	idStr: string,
-	index: number,
+	id: number;
+	idStr: string;
+	index: number;
 	name: string;
 }
 
 export interface CameraControlBase {
-	id: number,
-	idStr: string,
-	type: number,
-	typeStr: string,
-	name: string,
-	flags: CameraControlFlags,
-	default: number,
+	id: number;
+	idStr: string;
+	type: number;
+	typeStr: string;
+	name: string;
+	flags: CameraControlFlags;
+	default: number;
 }
 
 export type CameraControlSingle = CameraControlBase & {
-	min: number,
-	max: number,
-	step: number,
-}
+	min: number;
+	max: number;
+	step: number;
+};
 
 export type CameraControlMenu = CameraControlBase & {
-	menu: CameraControlMenuEntry[],
-}
+	menu: CameraControlMenuEntry[];
+};
 
 export type CameraControl = CameraControlSingle | CameraControlMenu;
 

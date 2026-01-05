@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "rm -r dist && tsc",
+    "format": "prettier --write src/ scripts/",
     "prepublishOnly": "rm -r dist && tsc",
     "script:example": "ts-node ./scripts/example.ts"
   },
@@ -25,10 +26,12 @@
   "homepage": "https://github.com/jangxx/v4l2-camera-ts#readme",
   "devDependencies": {
     "@types/ref-napi": "^3.0.12",
+    "prettier": "^3.7.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@types/node": "^25.0.3",
     "libv4l2-ts": "^1.0.0",
     "ref-napi": "^3.0.3"
   }

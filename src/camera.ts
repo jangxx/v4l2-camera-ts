@@ -1,6 +1,13 @@
 import fs from "fs";
 import ref from "ref-napi";
-import { v4l2_open, v4l2_close, v4l2_ioctl, v4l2_mmap, v4l2_munmap, is_readable_async } from "libv4l2-ts/dist/libv4l2"
+import {
+	v4l2_open,
+	v4l2_close,
+	v4l2_ioctl,
+	v4l2_mmap,
+	v4l2_munmap,
+	is_readable_async,
+} from "libv4l2-ts/dist/libv4l2";
 import {
 	v4l2_format,
 	ioctl,
@@ -16,6 +23,7 @@ import {
 	v4l2_requestbuffers,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
+import { Buffer } from "node:buffer";
 
 import {
 	GetCameraFormat,
@@ -26,7 +34,16 @@ import {
 	stringToFourcc,
 	transferFunctionToString,
 } from "./format";
-import { CameraControl, CameraControlMenu, CameraControlMenuEntry, CameraControlSingle, decodeFlags, decodeName, idToString, typeToString } from "./controls";
+import {
+	CameraControl,
+	CameraControlMenu,
+	CameraControlMenuEntry,
+	CameraControlSingle,
+	decodeFlags,
+	decodeName,
+	idToString,
+	typeToString,
+} from "./controls";
 
 export class Camera {
 	private _fd: number | null = null;
@@ -99,7 +116,6 @@ export class Camera {
 		const fmt = new v4l2_format();
 		fmt.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-
 		fmt.fmt.pix.width = format.width;
 		fmt.fmt.pix.height = format.height;
 		fmt.fmt.pix.pixelformat = stringToFourcc(format.pixelFormatStr);
@@ -137,7 +153,7 @@ export class Camera {
 					index: querymenu.index,
 					name: decodeName(querymenu.union.name.buffer),
 				});
-			} catch(e: any) {}
+			} catch (e: any) {}
 		}
 
 		return menu;
@@ -184,7 +200,7 @@ export class Camera {
 				}
 
 				ctrl.id = (ctrl.id | V4L2_CTRL_FLAG_NEXT_CTRL) >>> 0;
-			} catch(e: any) {
+			} catch (e: any) {
 				break;
 			}
 		}
@@ -199,7 +215,7 @@ export class Camera {
 
 		const control = new v4l2_control();
 		control.id = id;
-		
+
 		v4l2_ioctl(this._fd, ioctl.VIDIOC_G_CTRL, control.ref());
 
 		return control.value;
@@ -247,13 +263,9 @@ export class Camera {
 
 				v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERYBUF, buf.ref());
 
-				this._buffers.push(v4l2_mmap(
-					buf.length,
-					PROT_READ | PROT_WRITE,
-					MAP_SHARED,
-					this._fd,
-					buf.m.offset,
-				));
+				this._buffers.push(
+					v4l2_mmap(buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, this._fd, buf.m.offset),
+				);
 
 				v4l2_ioctl(this._fd, ioctl.VIDIOC_QBUF, buf.ref());
 			}
@@ -263,7 +275,7 @@ export class Camera {
 			v4l2_ioctl(this._fd, ioctl.VIDIOC_STREAMON, type);
 
 			this._dqBufStruct = new v4l2_buffer();
-		} catch(e: any) {
+		} catch (e: any) {
 			this._buffers = null;
 			this._lastBuffer = null;
 			throw e;
@@ -305,7 +317,7 @@ export class Camera {
 			v4l2_ioctl(this._fd, ioctl.VIDIOC_QBUF, this._dqBufStruct!.ref());
 		}
 
-		while(!await is_readable_async(this._fd, 1000)) {}
+		while (!(await is_readable_async(this._fd, 1000))) {}
 
 		this._dqBufStruct.ref().fill(0);
 		this._dqBufStruct.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;

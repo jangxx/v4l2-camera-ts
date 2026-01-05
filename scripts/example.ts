@@ -13,10 +13,7 @@ async function main() {
 
 	cam.setFormat({ width: 1920, height: 1080, pixelFormatStr: "MJPG" });
 
-	// console.log(JSON.stringify(cam.queryControls(), null, 2));
 
-	// console.log(cam.getControl(V4L2_CID_CONTRAST));
-	
 	cam.start();
 
 	for (let i = 0; i < 10; i++) {

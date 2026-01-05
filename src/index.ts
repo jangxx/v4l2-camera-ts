@@ -1,6 +1,4 @@
-export {
-	Camera
-} from "./camera";
+export { Camera } from "./camera";
 
 export * as controls from "./controls";
 
