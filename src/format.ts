@@ -1,4 +1,9 @@
-import { v4l2_field, v4l2_colorspace, v4l2_xfer_func } from "libv4l2-ts/dist/videodev2";
+import {
+	v4l2_field,
+	v4l2_colorspace,
+	v4l2_xfer_func,
+	v4l2_buf_type,
+} from "libv4l2-ts/dist/videodev2";
 import { v4l2_fourcc } from "libv4l2-ts/dist/libv4l2";
 
 export interface GetCameraFormat {
@@ -27,6 +32,63 @@ export interface SetCameraFormat {
 		denominator: number;
 	};
 }
+
+export interface SupportedCameraFormat {
+	type: number;
+	typeStr: string;
+	flags: {
+		compressed: boolean;
+		emulated: boolean;
+	};
+	pixelFormat: number;
+	pixelFormatStr: string;
+	description: string;
+}
+
+export type SupportedFrameInterval =
+	| {
+			type: "discrete";
+			numerator: number;
+			denominator: number;
+	  }
+	| {
+			type: "stepwise";
+			minNumerator: number;
+			maxNumerator: number;
+			stepNumerator: number;
+			minDenominator: number;
+			maxDenominator: number;
+			stepDenominator: number;
+	  }
+	| {
+			type: "continuous";
+	  };
+
+export type SupportedFrameFormat =
+	| {
+			type: "discrete";
+			width: number;
+			height: number;
+			intervals: SupportedFrameInterval[];
+	  }
+	| {
+			type: "stepwise";
+			minWidth: number;
+			maxWidth: number;
+			stepWidth: number;
+			minHeight: number;
+			maxHeight: number;
+			stepHeight: number;
+			intervals: SupportedFrameInterval[];
+	  }
+	| {
+			type: "continuous";
+			intervals: SupportedFrameInterval[];
+	  };
+
+export type SupportedCameraFormatExtended = SupportedCameraFormat & {
+	frameFormats: SupportedFrameFormat[];
+};
 
 export function stringToFourcc(str: string): number {
 	if (str.length !== 4) {
@@ -122,4 +184,8 @@ export function transferFunctionToString(xfer_func: number): string {
 		default:
 			return "Unknown";
 	}
+}
+
+export function formatTypeToString(type: number): string {
+	return v4l2_buf_type[type] || "UNKNOWN";
 }

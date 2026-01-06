@@ -7,6 +7,7 @@ import {
 	v4l2_mmap,
 	v4l2_munmap,
 	poll_async,
+	V4l2Error,
 } from "libv4l2-ts/dist/libv4l2";
 import {
 	v4l2_format,
@@ -30,6 +31,13 @@ import {
 	v4l2_query_ext_ctrl,
 	v4l2_capability,
 	V4L2_CAP_DEVICE_CAPS,
+	v4l2_fmtdesc,
+	V4L2_FMT_FLAG_COMPRESSED,
+	V4L2_FMT_FLAG_EMULATED,
+	v4l2_frmsizeenum,
+	v4l2_frmsizetypes,
+	v4l2_frmivalenum,
+	v4l2_frmivaltypes,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
 import { Buffer } from "node:buffer";
@@ -38,8 +46,12 @@ import { EventEmitter } from "node:events";
 import {
 	GetCameraFormat,
 	SetCameraFormat,
+	SupportedCameraFormat,
+	SupportedCameraFormatExtended,
+	SupportedFrameFormat,
 	colorspaceToString,
 	fieldToString,
+	formatTypeToString,
 	fourccToString,
 	stringToFourcc,
 	transferFunctionToString,
@@ -50,10 +62,10 @@ import {
 	CameraControlMenu,
 	CameraControlMenuEntry,
 	CameraControlSingle,
-	decodeFlags,
+	decodeControlFlags,
 	decodeName,
-	idToString,
-	typeToString,
+	controlIdToString,
+	controlTypeToString,
 } from "./controls";
 import { CaptureThread } from "./capture_thread";
 import { ControlEventsThread } from "./control_events_thread";
@@ -180,7 +192,7 @@ export class Camera extends EventEmitter<CameraEvents> {
 
 				menu.push({
 					id: querymenu.id,
-					idStr: idToString(querymenu.id),
+					idStr: controlIdToString(querymenu.id),
 					index: querymenu.index,
 					name: decodeName(querymenu.union.name.buffer),
 				});
@@ -207,28 +219,28 @@ export class Camera extends EventEmitter<CameraEvents> {
 				if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_MENU) {
 					const control: CameraControlMenu = {
 						id: ctrl.id,
-						idStr: idToString(ctrl.id),
+						idStr: controlIdToString(ctrl.id),
 						type: ctrl.type,
-						typeStr: typeToString(ctrl.type),
+						typeStr: controlTypeToString(ctrl.type),
 						name: decodeName(ctrl.name.buffer),
 						default: ctrl.default_value,
 						menu: this._queryMenu(ctrl.id, ctrl.minimum, ctrl.maximum),
-						flags: decodeFlags(ctrl.flags),
+						flags: decodeControlFlags(ctrl.flags),
 					};
 
 					controls.push(control);
 				} else {
 					const control: CameraControlSingle = {
 						id: ctrl.id,
-						idStr: idToString(ctrl.id),
+						idStr: controlIdToString(ctrl.id),
 						type: ctrl.type,
-						typeStr: typeToString(ctrl.type),
+						typeStr: controlTypeToString(ctrl.type),
 						name: decodeName(ctrl.name.buffer),
 						min: ctrl.minimum,
 						max: ctrl.maximum,
 						step: ctrl.step,
 						default: ctrl.default_value,
-						flags: decodeFlags(ctrl.flags),
+						flags: decodeControlFlags(ctrl.flags),
 						elementSize: ctrl.elem_size,
 						arrayElements: ctrl.elems,
 						arrayDimensions: ctrl.dims.slice(0, ctrl.nr_of_dims),
@@ -453,11 +465,11 @@ export class Camera extends EventEmitter<CameraEvents> {
 			if (ctrlEvent.changes | V4L2_EVENT_CTRL_CH_VALUE) {
 				const event: CameraControlEvent = {
 					id: eventData.id,
-					idStr: idToString(eventData.id),
+					idStr: controlIdToString(eventData.id),
 					type: ctrlEvent.type,
-					typeStr: typeToString(ctrlEvent.type),
+					typeStr: controlTypeToString(ctrlEvent.type),
 					value: ctrlEvent.value.value,
-					flags: decodeFlags(ctrlEvent.flags),
+					flags: decodeControlFlags(ctrlEvent.flags),
 					default: ctrlEvent.default_value,
 					min: ctrlEvent.minimum,
 					max: ctrlEvent.maximum,
@@ -512,5 +524,162 @@ export class Camera extends EventEmitter<CameraEvents> {
 		}
 
 		return capabilities;
+	}
+
+	getSupportedFormats(): SupportedCameraFormat[] {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const formats: SupportedCameraFormat[] = [];
+
+		const fmt = new v4l2_fmtdesc();
+		fmt.type = v4l2_buf_type.V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+		for (fmt.index = 0; ; fmt.index++) {
+			try {
+				v4l2_ioctl(this._fd, ioctl.VIDIOC_ENUM_FMT, fmt.ref());
+
+				formats.push({
+					type: fmt.type,
+					typeStr: formatTypeToString(fmt.type),
+					description: decodeName(fmt.description.buffer),
+					pixelFormat: fmt.pixelformat,
+					pixelFormatStr: fourccToString(fmt.pixelformat),
+					flags: {
+						compressed: !!(fmt.flags & V4L2_FMT_FLAG_COMPRESSED),
+						emulated: !!(fmt.flags & V4L2_FMT_FLAG_EMULATED),
+					},
+				});
+			} catch (err: any) {
+				if (err instanceof V4l2Error && err.errno === 22) {
+					// EINVAL - no more formats
+					break;
+				} else {
+					throw err; // rethrow all other errors
+				}
+			}
+		}
+
+		return formats;
+	}
+
+	getSupportedFormatsExtended(): SupportedCameraFormatExtended[] {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const formats = this.getSupportedFormats();
+		const extendedFormats: SupportedCameraFormatExtended[] = [];
+
+		for (const format of formats) {
+			const extendedFormat: SupportedCameraFormatExtended = { ...format, frameFormats: [] };
+
+			const framesize = new v4l2_frmsizeenum();
+			framesize.pixel_format = format.pixelFormat;
+
+			for (framesize.index = 0; ; framesize.index++) {
+				let frameFormat: SupportedFrameFormat;
+
+				try {
+					v4l2_ioctl(this._fd, ioctl.VIDIOC_ENUM_FRAMESIZES, framesize.ref());
+
+					switch (framesize.type) {
+						case v4l2_frmsizetypes.V4L2_FRMSIZE_TYPE_DISCRETE:
+							frameFormat = {
+								type: "discrete",
+								width: framesize.union.discrete.width,
+								height: framesize.union.discrete.height,
+								intervals: [],
+							};
+							break;
+						case v4l2_frmsizetypes.V4L2_FRMSIZE_TYPE_STEPWISE:
+							frameFormat = {
+								type: "stepwise",
+								minWidth: framesize.union.stepwise.min_width,
+								maxWidth: framesize.union.stepwise.max_width,
+								stepWidth: framesize.union.stepwise.step_width,
+								minHeight: framesize.union.stepwise.min_height,
+								maxHeight: framesize.union.stepwise.max_height,
+								stepHeight: framesize.union.stepwise.step_height,
+								intervals: [],
+							};
+							break;
+						case v4l2_frmsizetypes.V4L2_FRMSIZE_TYPE_CONTINUOUS:
+							frameFormat = {
+								type: "continuous",
+								intervals: [],
+							};
+							break;
+						default:
+							throw new Error("Unknown frame size type");
+					}
+				} catch (err: any) {
+					if (err instanceof V4l2Error && err.errno === 22) {
+						// EINVAL - no more framesizes
+						break;
+					} else {
+						throw err; // rethrow all other errors
+					}
+				}
+
+				// get frame intervals for this frame size
+
+				if (frameFormat.type === "discrete") {
+					// not sure how to query intervals for stepwise and continuous?
+					const frameinterval = new v4l2_frmivalenum();
+					frameinterval.pixel_format = format.pixelFormat;
+					frameinterval.width = frameFormat.width;
+					frameinterval.height = frameFormat.height;
+
+					for (frameinterval.index = 0; ; frameinterval.index++) {
+						try {
+							v4l2_ioctl(this._fd, ioctl.VIDIOC_ENUM_FRAMEINTERVALS, frameinterval.ref());
+
+							switch (frameinterval.type) {
+								case v4l2_frmivaltypes.V4L2_FRMIVAL_TYPE_DISCRETE:
+									frameFormat.intervals.push({
+										type: "discrete",
+										numerator: frameinterval.union.discrete.numerator,
+										denominator: frameinterval.union.discrete.denominator,
+									});
+									break;
+								case v4l2_frmivaltypes.V4L2_FRMIVAL_TYPE_STEPWISE:
+									frameFormat.intervals.push({
+										type: "stepwise",
+										minNumerator: frameinterval.union.stepwise.min.numerator,
+										maxNumerator: frameinterval.union.stepwise.max.numerator,
+										stepNumerator: frameinterval.union.stepwise.step.numerator,
+										minDenominator: frameinterval.union.stepwise.min.denominator,
+										maxDenominator: frameinterval.union.stepwise.max.denominator,
+										stepDenominator: frameinterval.union.stepwise.step.denominator,
+									});
+									break;
+								case v4l2_frmivaltypes.V4L2_FRMIVAL_TYPE_CONTINUOUS:
+									frameFormat.intervals.push({
+										type: "continuous",
+									});
+									break;
+								default:
+									throw new Error("Unknown frame interval type");
+							}
+						} catch (err: any) {
+							if (err instanceof V4l2Error && err.errno === 22) {
+								// EINVAL - no more frame intervals
+								break;
+							} else {
+								throw err; // rethrow all other errors
+							}
+						}
+					}
+				}
+
+				extendedFormat.frameFormats.push(frameFormat);
+			}
+
+			extendedFormats.push(extendedFormat);
+		}
+
+		return extendedFormats;
 	}
 }

@@ -10,7 +10,14 @@ export {
 	CameraControlEvent,
 } from "./controls";
 
-export { GetCameraFormat, SetCameraFormat } from "./format";
+export {
+	GetCameraFormat,
+	SetCameraFormat,
+	SupportedCameraFormat,
+	SupportedCameraFormatExtended,
+	SupportedFrameInterval,
+	SupportedFrameFormat,
+} from "./format";
 
 export { DeviceCapabilities, CameraCapabilities } from "./capabilities";
 

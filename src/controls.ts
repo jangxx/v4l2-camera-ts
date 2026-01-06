@@ -85,7 +85,7 @@ export function decodeName(nameRaw: Buffer) {
 	return name;
 }
 
-export function decodeFlags(flags: number): CameraControlFlags {
+export function decodeControlFlags(flags: number): CameraControlFlags {
 	return {
 		disabled: (flags & videodev2.V4L2_CTRL_FLAG_DISABLED) !== 0,
 		grabbed: (flags & videodev2.V4L2_CTRL_FLAG_GRABBED) !== 0,
@@ -101,10 +101,10 @@ export function decodeFlags(flags: number): CameraControlFlags {
 	};
 }
 
-export function typeToString(type: number) {
+export function controlTypeToString(type: number) {
 	return v4l2_ctrl_type[type] || "UNKNOWN";
 }
 
-export function idToString(id: number) {
+export function controlIdToString(id: number) {
 	return CONTROL_MAP[id] || "UNKNOWN";
 }
