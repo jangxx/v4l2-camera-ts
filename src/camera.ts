@@ -13,7 +13,6 @@ import {
 	ioctl,
 	v4l2_buf_type,
 	v4l2_streamparm,
-	v4l2_queryctrl,
 	V4L2_CTRL_FLAG_NEXT_CTRL,
 	v4l2_control,
 	v4l2_ctrl_type,
@@ -28,6 +27,7 @@ import {
 	V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK,
 	V4L2_EVENT_ALL,
 	V4L2_EVENT_CTRL_CH_VALUE,
+	v4l2_query_ext_ctrl,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
 import { Buffer } from "node:buffer";
@@ -175,7 +175,7 @@ export class Camera extends EventEmitter<CameraEvents> {
 		const querymenu = new v4l2_querymenu();
 		querymenu.id = id;
 
-		for (querymenu.index = min; querymenu.index < max; querymenu.index++) {
+		for (querymenu.index = min; querymenu.index <= max; querymenu.index++) {
 			try {
 				v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERYMENU, querymenu.ref());
 
@@ -196,17 +196,17 @@ export class Camera extends EventEmitter<CameraEvents> {
 			throw new Error("Camera is not open");
 		}
 
-		const ctrl = new v4l2_queryctrl();
+		const ctrl = new v4l2_query_ext_ctrl();
 		ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
 
 		const controls: CameraControl[] = [];
 
 		while (true) {
 			try {
-				v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERYCTRL, ctrl.ref());
+				v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERY_EXT_CTRL, ctrl.ref());
 
 				if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_MENU) {
-					controls.push({
+					const control: CameraControlMenu = {
 						id: ctrl.id,
 						idStr: idToString(ctrl.id),
 						type: ctrl.type,
@@ -215,9 +215,11 @@ export class Camera extends EventEmitter<CameraEvents> {
 						default: ctrl.default_value,
 						menu: this._queryMenu(ctrl.id, ctrl.minimum, ctrl.maximum),
 						flags: decodeFlags(ctrl.flags),
-					} as CameraControlMenu);
+					};
+
+					controls.push(control);
 				} else {
-					controls.push({
+					const control: CameraControlSingle = {
 						id: ctrl.id,
 						idStr: idToString(ctrl.id),
 						type: ctrl.type,
@@ -228,7 +230,12 @@ export class Camera extends EventEmitter<CameraEvents> {
 						step: ctrl.step,
 						default: ctrl.default_value,
 						flags: decodeFlags(ctrl.flags),
-					} as CameraControlSingle);
+						elementSize: ctrl.elem_size,
+						arrayElements: ctrl.elems,
+						arrayDimensions: ctrl.dims.slice(0, ctrl.nr_of_dims),
+					};
+
+					controls.push(control);
 				}
 
 				ctrl.id = (ctrl.id | V4L2_CTRL_FLAG_NEXT_CTRL) >>> 0;

@@ -23,6 +23,12 @@ function main() {
 			console.log("  min:", control.min);
 			console.log("  max:", control.max);
 			console.log("  step:", control.step);
+			console.log("  element size (bytes):", control.elementSize);
+
+			if (control.arrayElements > 1) {
+				console.log("  array elements:", control.arrayElements);
+				console.log("  array dimensions:", control.arrayDimensions);
+			}
 		}
 	}
 

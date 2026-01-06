@@ -47,6 +47,9 @@ export type CameraControlSingle = CameraControlBase & {
 	min: number;
 	max: number;
 	step: number;
+	elementSize: number;
+	arrayElements: number;
+	arrayDimensions: number[];
 };
 
 export type CameraControlMenu = CameraControlBase & {
