@@ -138,6 +138,9 @@ Starts a background thread that continuously retrieves control change events fro
 `disableBackgroundControlChangeEvents(): void`  
 Stops the background control events thread.
 
+`getCapabilities(): CameraCapabilities`  
+Returns info about the camera including driver name, card name, bus info, driver version and supported capabilities.
+
 ## Events
 
 `frame` (data: Buffer)  

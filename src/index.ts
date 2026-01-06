@@ -1,5 +1,17 @@
 export { Camera } from "./camera";
 
-export * as controls from "./controls";
+export {
+	CameraControlFlags,
+	CameraControlMenuEntry,
+	CameraControlBase,
+	CameraControlSingle,
+	CameraControlMenu,
+	CameraControl,
+	CameraControlEvent,
+} from "./controls";
 
-export * as format from "./format";
+export { GetCameraFormat, SetCameraFormat } from "./format";
+
+export { DeviceCapabilities, CameraCapabilities } from "./capabilities";
+
+export * from "./camera_interfaces";

@@ -1,4 +1,4 @@
-import { Camera } from "../src/camera";
+import { Camera } from "../src/";
 
 async function main() {
 	const cam = new Camera();

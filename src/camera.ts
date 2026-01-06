@@ -28,6 +28,8 @@ import {
 	V4L2_EVENT_ALL,
 	V4L2_EVENT_CTRL_CH_VALUE,
 	v4l2_query_ext_ctrl,
+	v4l2_capability,
+	V4L2_CAP_DEVICE_CAPS,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
 import { Buffer } from "node:buffer";
@@ -55,11 +57,8 @@ import {
 } from "./controls";
 import { CaptureThread } from "./capture_thread";
 import { ControlEventsThread } from "./control_events_thread";
-
-export interface SubscribeEventFlags {
-	sendInitial?: boolean;
-	allowFeedback?: boolean;
-}
+import { SubscribeEventFlags } from "./camera_interfaces";
+import { CameraCapabilities, decodeCapabilities, decodeVersion } from "./capabilities";
 
 interface CameraEvents {
 	frame: [Buffer];
@@ -489,5 +488,29 @@ export class Camera extends EventEmitter<CameraEvents> {
 		}
 
 		this._controlEventsThread.stop();
+	}
+
+	getCapabilities(): CameraCapabilities {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const caps = new v4l2_capability();
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERYCAP, caps.ref());
+
+		const capabilities: CameraCapabilities = {
+			driver: decodeName(caps.driver.buffer),
+			card: decodeName(caps.card.buffer),
+			busInfo: decodeName(caps.bus_info.buffer),
+			version: decodeVersion(caps.version),
+			allCapabilities: decodeCapabilities(caps.capabilities),
+		};
+
+		if (caps.capabilities & V4L2_CAP_DEVICE_CAPS) {
+			capabilities.currentCapabilities = decodeCapabilities(caps.device_caps);
+		}
+
+		return capabilities;
 	}
 }
