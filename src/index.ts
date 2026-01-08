@@ -22,3 +22,5 @@ export {
 export { DeviceCapabilities, CameraCapabilities } from "./capabilities";
 
 export * from "./camera_interfaces";
+
+export { listDevices } from "./utils";

@@ -38,6 +38,7 @@ import {
 	v4l2_frmsizetypes,
 	v4l2_frmivalenum,
 	v4l2_frmivaltypes,
+	V4L2_CTRL_FLAG_NEXT_COMPOUND,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
 import { Buffer } from "node:buffer";
@@ -86,6 +87,10 @@ export class Camera extends EventEmitter<CameraEvents> {
 
 	private _captureThread: CaptureThread | null = null;
 	private _controlEventsThread: ControlEventsThread | null = null;
+
+	get opened() {
+		return this._fd !== null;
+	}
 
 	get started() {
 		return this._buffers !== null;
@@ -207,8 +212,10 @@ export class Camera extends EventEmitter<CameraEvents> {
 			throw new Error("Camera is not open");
 		}
 
+		const nextControlFlags = (V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND) >>> 0;
+
 		const ctrl = new v4l2_query_ext_ctrl();
-		ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+		ctrl.id = nextControlFlags;
 
 		const controls: CameraControl[] = [];
 
@@ -243,13 +250,13 @@ export class Camera extends EventEmitter<CameraEvents> {
 						flags: decodeControlFlags(ctrl.flags),
 						elementSize: ctrl.elem_size,
 						arrayElements: ctrl.elems,
-						arrayDimensions: ctrl.dims.slice(0, ctrl.nr_of_dims),
+						arrayDimensions: ctrl.dims.toArray().slice(0, ctrl.nr_of_dims),
 					};
 
 					controls.push(control);
 				}
 
-				ctrl.id = (ctrl.id | V4L2_CTRL_FLAG_NEXT_CTRL) >>> 0;
+				ctrl.id = (ctrl.id | nextControlFlags) >>> 0;
 			} catch (e: any) {
 				break;
 			}

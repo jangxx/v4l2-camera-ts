@@ -24,6 +24,8 @@ export interface CameraControlFlags {
 	hasPayload: boolean;
 	executeOnWrite: boolean;
 	modifyLayout: boolean;
+	dynamicArray: boolean;
+	hasWhichMinMax: boolean;
 }
 
 export interface CameraControlMenuEntry {
@@ -98,6 +100,8 @@ export function decodeControlFlags(flags: number): CameraControlFlags {
 		hasPayload: (flags & videodev2.V4L2_CTRL_FLAG_HAS_PAYLOAD) !== 0,
 		executeOnWrite: (flags & videodev2.V4L2_CTRL_FLAG_EXECUTE_ON_WRITE) !== 0,
 		modifyLayout: (flags & videodev2.V4L2_CTRL_FLAG_MODIFY_LAYOUT) !== 0,
+		dynamicArray: (flags & videodev2.V4L2_CTRL_FLAG_DYNAMIC_ARRAY) !== 0,
+		hasWhichMinMax: (flags & videodev2.V4L2_CTRL_FLAG_HAS_WHICH_MIN_MAX) !== 0,
 	};
 }
 

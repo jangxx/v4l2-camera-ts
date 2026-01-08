@@ -62,6 +62,9 @@ You can find more examples in the _scripts/_ directory.
 
 ### `Camera`
 
+`get opened: boolean`  
+Returns if `open()` has been called already.
+
 `get started: boolean`  
 Returns if `start()` has been called already.
 
@@ -150,6 +153,13 @@ Returns a list of all supported camera formats.
 
 `getSupportedFormatsExtended(): SupportedCameraFormatExtended[]`  
 Returns a list of all supported camera formats including all supported frame sizes and frame intervals (i.e. fps) for each format.
+
+### Utility Functions
+
+`listDevices(filter?: Partial<DeviceCapabilities>): Promise<DeviceListEntry[]>`  
+Returns a list of all available V4L2 devices on the system, optionally filtered by the provided capabilities.
+The filters need to match exactly, so if you provide `{ videoCapture: true }`, only devices that support video capture will be returned.
+The function is supposed to match the functionality of `v4l2-ctl --list-devices`, but as of right now it only checks and returns `videoX` devices.
 
 ## Events
 

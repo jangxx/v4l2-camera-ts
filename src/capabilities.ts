@@ -53,7 +53,7 @@ export interface DeviceCapabilities {
 	sdrOutput: boolean;
 	metadataCapture: boolean;
 	readWrite: boolean;
-	asyncio: boolean;
+	// asyncio: boolean;
 	streaming: boolean;
 	touch: boolean;
 }
@@ -93,7 +93,7 @@ export function decodeCapabilities(capabilities: number): DeviceCapabilities {
 		sdrOutput: !!(capabilities & V4L2_CAP_SDR_OUTPUT),
 		metadataCapture: !!(capabilities & V4L2_CAP_META_CAPTURE),
 		readWrite: !!(capabilities & V4L2_CAP_READWRITE),
-		asyncio: !!(capabilities & V4L2_CAP_ASYNCIO),
+		// asyncio: !!(capabilities & V4L2_CAP_ASYNCIO),
 		streaming: !!(capabilities & V4L2_CAP_STREAMING),
 		touch: !!(capabilities & V4L2_CAP_TOUCH),
 	};
