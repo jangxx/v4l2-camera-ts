@@ -11,7 +11,7 @@ function main() {
 		console.log(">", control.name);
 
 		if (!control.flags.writeOnly) {
-			console.log("  value:", cam.getControlComplex(control.id));
+			console.log("  value:", cam.getControlExtended(control.id));
 		}
 
 		if ("menu" in control) {

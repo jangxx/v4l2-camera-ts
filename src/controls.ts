@@ -113,7 +113,7 @@ export function controlIdToString(id: number) {
 	return CONTROL_MAP[id] || "UNKNOWN";
 }
 
-export enum ComplexControlType {
+export enum ExtendedControlDataType {
 	Int32 = "int32",
 	Int64 = "int64",
 	String = "string",
@@ -124,60 +124,60 @@ export enum ComplexControlType {
 	Rect = "rect",
 }
 
-type ComplexControlDataBase = {
-	type: ComplexControlType;
+type ExtendedControlDataBase = {
+	type: ExtendedControlDataType;
 };
 
-export type ComplexControlDataInt32 = ComplexControlDataBase & {
-	type: ComplexControlType.Int32;
+export type ExtendedControlDataInt32 = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Int32;
 	value: number;
 };
 
-export type ComplexControlDataInt64 = ComplexControlDataBase & {
-	type: ComplexControlType.Int64;
+export type ExtendedControlDataInt64 = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Int64;
 	value: number;
 };
 
-export type ComplexControlDataString = ComplexControlDataBase & {
-	type: ComplexControlType.String;
+export type ExtendedControlDataString = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.String;
 	value: string | null;
 };
 
-export type ComplexControlDataUint8 = ComplexControlDataBase & {
-	type: ComplexControlType.Uint8Matrix;
+export type ExtendedControlDataUint8 = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Uint8Matrix;
 	values: number[];
 };
 
-export type ComplexControlDataUint16 = ComplexControlDataBase & {
-	type: ComplexControlType.Uint16Matrix;
+export type ExtendedControlDataUint16 = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Uint16Matrix;
 	values: number[];
 };
 
-export type ComplexControlDataUint32 = ComplexControlDataBase & {
-	type: ComplexControlType.Uint32Matrix;
+export type ExtendedControlDataUint32 = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Uint32Matrix;
 	values: number[];
 };
 
-export type ComplexControlDataArea = ComplexControlDataBase & {
-	type: ComplexControlType.Area;
+export type ExtendedControlDataArea = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Area;
 	width: number;
 	height: number;
 };
 
-export type ComplexControlDataRect = ComplexControlDataBase & {
-	type: ComplexControlType.Rect;
+export type ExtendedControlDataRect = ExtendedControlDataBase & {
+	type: ExtendedControlDataType.Rect;
 	left: number;
 	top: number;
 	width: number;
 	height: number;
 };
 
-export type ComplexControlData =
-	| ComplexControlDataInt32
-	| ComplexControlDataInt64
-	| ComplexControlDataString
-	| ComplexControlDataUint8
-	| ComplexControlDataUint16
-	| ComplexControlDataUint32
-	| ComplexControlDataArea
-	| ComplexControlDataRect;
+export type ExtendedControlData =
+	| ExtendedControlDataInt32
+	| ExtendedControlDataInt64
+	| ExtendedControlDataString
+	| ExtendedControlDataUint8
+	| ExtendedControlDataUint16
+	| ExtendedControlDataUint32
+	| ExtendedControlDataArea
+	| ExtendedControlDataRect;
