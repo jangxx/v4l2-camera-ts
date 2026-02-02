@@ -39,6 +39,11 @@ import {
 	v4l2_frmivalenum,
 	v4l2_frmivaltypes,
 	V4L2_CTRL_FLAG_NEXT_COMPOUND,
+	v4l2_ext_controls,
+	V4L2_CTRL_WHICH_CUR_VAL,
+	v4l2_ext_control,
+	v4l2_rect,
+	v4l2_area,
 } from "libv4l2-ts/dist/videodev2";
 import { PROT_READ, PROT_WRITE, MAP_SHARED } from "libv4l2-ts/dist/mman";
 import { Buffer } from "node:buffer";
@@ -67,11 +72,25 @@ import {
 	decodeName,
 	controlIdToString,
 	controlTypeToString,
+	ComplexControlType,
+	ComplexControlData,
+	ComplexControlDataInt32,
+	ComplexControlDataInt64,
+	ComplexControlDataString,
+	ComplexControlDataUint8,
+	ComplexControlDataUint16,
+	ComplexControlDataUint32,
+	ComplexControlDataArea,
+	ComplexControlDataRect,
 } from "./controls";
 import { CaptureThread } from "./capture_thread";
 import { ControlEventsThread } from "./control_events_thread";
 import { SubscribeEventFlags } from "./camera_interfaces";
 import { CameraCapabilities, decodeCapabilities, decodeVersion } from "./capabilities";
+import { videodev2 } from "libv4l2-ts";
+import ref_array from "ref-array-di";
+
+const ArrayType = ref_array(ref);
 
 interface CameraEvents {
 	frame: [Buffer];
@@ -230,8 +249,8 @@ export class Camera extends EventEmitter<CameraEvents> {
 						type: ctrl.type,
 						typeStr: controlTypeToString(ctrl.type),
 						name: decodeName(ctrl.name.buffer),
-						default: ctrl.default_value,
-						menu: this._queryMenu(ctrl.id, ctrl.minimum, ctrl.maximum),
+						default: Number(ctrl.default_value),
+						menu: this._queryMenu(ctrl.id, Number(ctrl.minimum), Number(ctrl.maximum)),
 						flags: decodeControlFlags(ctrl.flags),
 					};
 
@@ -243,10 +262,10 @@ export class Camera extends EventEmitter<CameraEvents> {
 						type: ctrl.type,
 						typeStr: controlTypeToString(ctrl.type),
 						name: decodeName(ctrl.name.buffer),
-						min: ctrl.minimum,
-						max: ctrl.maximum,
-						step: ctrl.step,
-						default: ctrl.default_value,
+						min: Number(ctrl.minimum),
+						max: Number(ctrl.maximum),
+						step: Number(ctrl.step),
+						default: Number(ctrl.default_value),
 						flags: decodeControlFlags(ctrl.flags),
 						elementSize: ctrl.elem_size,
 						arrayElements: ctrl.elems,
@@ -278,6 +297,109 @@ export class Camera extends EventEmitter<CameraEvents> {
 		return control.value;
 	}
 
+	getControlComplex(id: number): ComplexControlData {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		let resultType: ComplexControlType;
+
+		const ext_ctrl = new v4l2_ext_control();
+		ext_ctrl.id = id;
+
+		// first, query the control to determine its type and payload size
+		const ctrl = new v4l2_query_ext_ctrl();
+		ctrl.id = id;
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_QUERY_EXT_CTRL, ctrl.ref());
+
+		const hasPayload = (ctrl.flags & videodev2.V4L2_CTRL_FLAG_HAS_PAYLOAD) !== 0;
+
+		if (ctrl.type !== v4l2_ctrl_type.V4L2_CTRL_TYPE_INTEGER64 && !hasPayload) {
+			resultType = ComplexControlType.Int32;
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_INTEGER64 && !hasPayload) {
+			resultType = ComplexControlType.Int64;
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_STRING) {
+			resultType = ComplexControlType.String;
+			ext_ctrl.size = ctrl.elem_size;
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_U8) {
+			resultType = ComplexControlType.Uint8Matrix;
+			ext_ctrl.size = ctrl.elem_size * ctrl.elems * Math.min(ctrl.nr_of_dims, 1);
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_U16) {
+			resultType = ComplexControlType.Uint16Matrix;
+			ext_ctrl.size = ctrl.elem_size * ctrl.elems * Math.min(ctrl.nr_of_dims, 1);
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_U32) {
+			resultType = ComplexControlType.Uint32Matrix;
+			ext_ctrl.size = ctrl.elem_size * ctrl.elems * Math.min(ctrl.nr_of_dims, 1);
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_AREA) {
+			resultType = ComplexControlType.Area;
+			ext_ctrl.size = v4l2_area.size;
+		} else if (ctrl.type === v4l2_ctrl_type.V4L2_CTRL_TYPE_RECT) {
+			resultType = ComplexControlType.Rect;
+			ext_ctrl.size = v4l2_rect.size;
+		} else {
+			throw new Error("Unsupported complex control type");
+		}
+
+		const ext_ctrls = new v4l2_ext_controls();
+		ext_ctrls.union.which = V4L2_CTRL_WHICH_CUR_VAL;
+		ext_ctrls.count = 1;
+		ext_ctrls.controls = ext_ctrl.ref();
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_G_EXT_CTRLS, ext_ctrls.ref());
+
+		switch (resultType) {
+			case ComplexControlType.Int32:
+				return {
+					type: ComplexControlType.Int32,
+					value: ext_ctrl.union.value,
+				};
+			case ComplexControlType.Int64:
+				return {
+					type: ComplexControlType.Int64,
+					value: Number(ext_ctrl.union.value64),
+				};
+			case ComplexControlType.String:
+				return {
+					type: ComplexControlType.String,
+					value: ext_ctrl.union.string,
+				};
+			case ComplexControlType.Uint8Matrix:
+				return {
+					type: ComplexControlType.Uint8Matrix,
+					values: ext_ctrl.union.p_u8.deref().toArray(),
+				};
+			case ComplexControlType.Uint16Matrix:
+				return {
+					type: ComplexControlType.Uint16Matrix,
+					values: ext_ctrl.union.p_u16.deref().toArray(),
+				};
+			case ComplexControlType.Uint32Matrix:
+				return {
+					type: ComplexControlType.Uint32Matrix,
+					values: ext_ctrl.union.p_u32.deref().toArray(),
+				};
+			case ComplexControlType.Area:
+				const area = ext_ctrl.union.p_area.deref();
+
+				return {
+					type: ComplexControlType.Area,
+					width: area.width,
+					height: area.height,
+				};
+			case ComplexControlType.Rect:
+				const rect = ext_ctrl.union.p_rect.deref();
+
+				return {
+					type: ComplexControlType.Rect,
+					left: rect.left,
+					top: rect.top,
+					width: rect.width,
+					height: rect.height,
+				};
+		}
+	}
+
 	setControl(id: number, value: number) {
 		if (this._fd === null) {
 			throw new Error("Camera is not open");
@@ -290,6 +412,65 @@ export class Camera extends EventEmitter<CameraEvents> {
 		v4l2_ioctl(this._fd, ioctl.VIDIOC_S_CTRL, control.ref());
 
 		return control.value;
+	}
+
+	setControlComplex(id: number, data: ComplexControlData) {
+		if (this._fd === null) {
+			throw new Error("Camera is not open");
+		}
+
+		const ext_ctrl = new v4l2_ext_control();
+		ext_ctrl.id = id;
+
+		switch (data.type) {
+			case ComplexControlType.Int32:
+				ext_ctrl.union.value = data.value;
+				break;
+			case ComplexControlType.Int64:
+				ext_ctrl.union.value64 = data.value;
+				break;
+			case ComplexControlType.String:
+				ext_ctrl.union.string = data.value; // I wonder if this actually works
+				break;
+			case ComplexControlType.Uint8Matrix: {
+				const UintArray = new ArrayType(ref.types.uint8);
+				ext_ctrl.union.p_u8 = new UintArray(data.values).ref() as any;
+				break;
+			}
+			case ComplexControlType.Uint16Matrix: {
+				const UintArray = new ArrayType(ref.types.uint16);
+				ext_ctrl.union.p_u16 = new UintArray(data.values).ref() as any;
+				break;
+			}
+			case ComplexControlType.Uint32Matrix: {
+				const UintArray = new ArrayType(ref.types.uint32);
+				ext_ctrl.union.p_u32 = new UintArray(data.values).ref() as any;
+				break;
+			}
+			case ComplexControlType.Area: {
+				const area = new v4l2_area();
+				area.width = data.width;
+				area.height = data.height;
+				ext_ctrl.union.p_area = area.ref();
+				break;
+			}
+			case ComplexControlType.Rect: {
+				const rect = new v4l2_rect();
+				rect.left = data.left;
+				rect.top = data.top;
+				rect.width = data.width;
+				rect.height = data.height;
+				ext_ctrl.union.p_rect = rect.ref();
+				break;
+			}
+		}
+
+		const ext_ctrls = new v4l2_ext_controls();
+		ext_ctrls.union.which = V4L2_CTRL_WHICH_CUR_VAL;
+		ext_ctrls.count = 1;
+		ext_ctrls.controls = ext_ctrl.ref();
+
+		v4l2_ioctl(this._fd, ioctl.VIDIOC_S_EXT_CTRLS, ext_ctrls.ref());
 	}
 
 	start(bufferCount = 2) {

@@ -112,3 +112,72 @@ export function controlTypeToString(type: number) {
 export function controlIdToString(id: number) {
 	return CONTROL_MAP[id] || "UNKNOWN";
 }
+
+export enum ComplexControlType {
+	Int32 = "int32",
+	Int64 = "int64",
+	String = "string",
+	Uint8Matrix = "uint8_matrix",
+	Uint16Matrix = "uint16_matrix",
+	Uint32Matrix = "uint32_matrix",
+	Area = "area",
+	Rect = "rect",
+}
+
+type ComplexControlDataBase = {
+	type: ComplexControlType;
+};
+
+export type ComplexControlDataInt32 = ComplexControlDataBase & {
+	type: ComplexControlType.Int32;
+	value: number;
+};
+
+export type ComplexControlDataInt64 = ComplexControlDataBase & {
+	type: ComplexControlType.Int64;
+	value: number;
+};
+
+export type ComplexControlDataString = ComplexControlDataBase & {
+	type: ComplexControlType.String;
+	value: string | null;
+};
+
+export type ComplexControlDataUint8 = ComplexControlDataBase & {
+	type: ComplexControlType.Uint8Matrix;
+	values: number[];
+};
+
+export type ComplexControlDataUint16 = ComplexControlDataBase & {
+	type: ComplexControlType.Uint16Matrix;
+	values: number[];
+};
+
+export type ComplexControlDataUint32 = ComplexControlDataBase & {
+	type: ComplexControlType.Uint32Matrix;
+	values: number[];
+};
+
+export type ComplexControlDataArea = ComplexControlDataBase & {
+	type: ComplexControlType.Area;
+	width: number;
+	height: number;
+};
+
+export type ComplexControlDataRect = ComplexControlDataBase & {
+	type: ComplexControlType.Rect;
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+};
+
+export type ComplexControlData =
+	| ComplexControlDataInt32
+	| ComplexControlDataInt64
+	| ComplexControlDataString
+	| ComplexControlDataUint8
+	| ComplexControlDataUint16
+	| ComplexControlDataUint32
+	| ComplexControlDataArea
+	| ComplexControlDataRect;
